@@ -133,9 +133,10 @@ class GeminiClient:
         # Build priority model list
         primary = target_model or self.model
         models_to_try: List[str] = [primary]
-        for fb in self.fallback_models:
-            if fb and fb not in models_to_try:
-                models_to_try.append(fb)
+        if action == "generateContent":
+            for fb in self.fallback_models:
+                if fb and fb not in models_to_try:
+                    models_to_try.append(fb)
 
         client = self._get_http_client()
         last_error_desc = "Unknown error"

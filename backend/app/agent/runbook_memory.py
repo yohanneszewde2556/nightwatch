@@ -66,8 +66,10 @@ async def search_similar_runbooks(
     # Attempt to embed query
     query_vector: Optional[List[float]] = None
     try:
+        import asyncio
         gemini = get_gemini_client()
-        query_vector = await gemini.embed_content(query)
+        resp = await asyncio.to_thread(gemini.embed_content, query)
+        query_vector = resp.embedding if resp else None
     except Exception as exc:
         logger.debug("Gemini embedding unavailable for runbook search, using lexical match: %s", exc)
 
@@ -109,8 +111,10 @@ async def save_incident_to_runbook(
 
     vector: Optional[List[float]] = None
     try:
+        import asyncio
         gemini = get_gemini_client()
-        vector = await gemini.embed_content(combined_text)
+        resp = await asyncio.to_thread(gemini.embed_content, combined_text)
+        vector = resp.embedding if resp else None
     except Exception as exc:
         logger.debug("Could not compute embedding for runbook record: %s", exc)
 
