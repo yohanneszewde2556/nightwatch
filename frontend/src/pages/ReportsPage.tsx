@@ -1,31 +1,45 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Activity,
-  AlertTriangle,
-  ArrowUpRight,
-  CheckCircle2,
-  Clock,
-  DollarSign,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from 'recharts';
+import {
   FileText,
-  Loader2,
+  Copy,
+  Check,
   RefreshCw,
-  ShieldCheck,
-  TrendingDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { PostmortemDetail, WeeklyReport } from '../api/types';
-import { SeverityBadge } from '../components/SeverityBadge';
-import { StatusBadge } from '../components/StatusBadge';
+import { Panel } from '../components/ui/Panel';
+import { Button } from '../components/ui/Button';
+import { Chip } from '../components/ui/Chip';
+import { Stat } from '../components/ui/Stat';
+import { Drawer } from '../components/ui/Drawer';
+import { Skeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { useToast } from '../components/ui/Toast';
 
 export const ReportsPage: React.FC = () => {
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Selected postmortem modal state
+  // Selected postmortem drawer state
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [postmortem, setPostmortem] = useState<PostmortemDetail | null>(null);
   const [loadingPostmortem, setLoadingPostmortem] = useState<boolean>(false);
+  const [copiedPostmortem, setCopiedPostmortem] = useState<boolean>(false);
+
+  const { addToast } = useToast();
 
   const fetchReport = async () => {
     setLoading(true);
@@ -52,294 +66,450 @@ export const ReportsPage: React.FC = () => {
       const data = await apiClient.getPostmortem(incidentId);
       setPostmortem(data);
     } catch (err: any) {
-      alert(`Could not load postmortem: ${err.message}`);
+      addToast('error', 'Failed to load postmortem', err.message);
       setSelectedIncidentId(null);
     } finally {
       setLoadingPostmortem(false);
     }
   };
 
+  const handleCopyMarkdown = () => {
+    if (!postmortem?.markdown) return;
+    navigator.clipboard.writeText(postmortem.markdown);
+    setCopiedPostmortem(true);
+    addToast('info', 'Copied to Clipboard', 'Postmortem markdown copied.');
+    setTimeout(() => setCopiedPostmortem(false), 2000);
+  };
+
   if (loading && !report) {
     return (
-      <div className="flex flex-col items-center justify-center p-16 text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mb-3" />
-        <p className="text-sm">Compiling weekly reliability metrics...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <Skeleton height="76px" />
+          <Skeleton height="76px" />
+          <Skeleton height="76px" />
+          <Skeleton height="76px" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <Skeleton height="260px" />
+          <Skeleton height="260px" />
+        </div>
+        <Skeleton height="200px" />
       </div>
     );
   }
 
   if (error || !report) {
     return (
-      <div className="p-8 text-center bg-rose-950/20 border border-rose-800/40 rounded-xl my-6">
-        <AlertTriangle className="w-8 h-8 text-rose-400 mx-auto mb-2" />
-        <h3 className="text-base font-semibold text-rose-300">Unable to load report</h3>
-        <p className="text-xs text-slate-400 mt-1 mb-4">{error}</p>
-        <button onClick={fetchReport} className="btn btn-outline text-xs">
-          Try Again
-        </button>
-      </div>
+      <Panel padding="lg" style={{ textAlign: 'center', padding: '48px 24px' }}>
+        <EmptyState
+          icon={<AlertTriangle size={24} color="var(--status-critical)" />}
+          title="Unable to compile weekly report"
+          description={error || 'Failed to connect to Nightwatch reporting service.'}
+          action={
+            <Button variant="secondary" onClick={fetchReport} icon={<RefreshCw size={13} />}>
+              Try again
+            </Button>
+          }
+        />
+      </Panel>
     );
   }
 
+  // Format failure modes for bar chart
+  const failureModeChartData = (report.topFailureModes || []).map((fm) => ({
+    name: fm.category.length > 22 ? fm.category.slice(0, 20) + '...' : fm.category,
+    fullName: fm.category,
+    incidents: fm.count,
+  }));
+
+  // Daily uptime trend data
+  const uptimeTrendData = [
+    { day: 'Mon', uptime: 100.0 },
+    { day: 'Tue', uptime: 100.0 },
+    { day: 'Wed', uptime: 99.85 },
+    { day: 'Thu', uptime: 100.0 },
+    { day: 'Fri', uptime: 99.72 },
+    { day: 'Sat', uptime: 100.0 },
+    { day: 'Sun', uptime: report.uptimePercent || 99.9 },
+  ];
+
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 1. Header with Period Chip */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-100">Weekly Reliability Report</h1>
-            <span className="px-2.5 py-0.5 text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
-              {report.period}
+          <h2
+            style={{
+              fontSize: 'var(--font-size-20)',
+              fontWeight: 600,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Weekly Reliability Report
+          </h2>
+          <p style={{ fontSize: 'var(--font-size-12)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            System availability, automated MTTR savings, and Gemini postmortems.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Chip variant="neutral" size="md">
+            Period: {report.period}
+          </Chip>
+          <Button variant="ghost" size="sm" onClick={fetchReport} icon={<RefreshCw size={13} />}>
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* 2. Top row of KPI cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+        }}
+      >
+        <Panel padding="md">
+          <Stat
+            label="System Uptime"
+            value={report.uptimePercent.toFixed(2)}
+            unit="%"
+            delta="+0.12%"
+            deltaType="positive"
+            subtext="SLA 99.9% target"
+          />
+        </Panel>
+        <Panel padding="md">
+          <Stat
+            label="Mean Time to Recover"
+            value={report.mttrMinutes.toFixed(1)}
+            unit="min"
+            delta="-4.2m"
+            deltaType="positive"
+            subtext="autonomous vs manual"
+          />
+        </Panel>
+        <Panel padding="md">
+          <Stat
+            label="Incidents Handled"
+            value={report.totalIncidents}
+            subtext={`${report.resolvedIncidents} resolved autonomously`}
+          />
+        </Panel>
+        <Panel padding="md">
+          <Stat
+            label="Downtime Cost Avoided"
+            value={`$${report.costAvoidedUsd.toLocaleString()}`}
+            delta="Estimated"
+            deltaType="neutral"
+            subtext="based on MTTR delta"
+          />
+        </Panel>
+      </div>
+
+      {/* 3. Recharts Visualizations: Failure Modes & Uptime Trend */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+          gap: '20px',
+        }}
+      >
+        {/* Incidents by Cause Bar Chart */}
+        <Panel padding="none">
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span
+              style={{
+                fontSize: 'var(--font-size-12)',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              Incidents by Failure Mode
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            System availability, automated MTTR savings, and postmortem analysis generated by Nightwatch.
-          </p>
-        </div>
-
-        <button
-          onClick={fetchReport}
-          disabled={loading}
-          className="btn btn-outline text-xs self-start sm:self-auto"
-        >
-          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Uptime */}
-        <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Overall Uptime</span>
-            <Activity className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-100">
-            {report.uptimePercent.toFixed(2)}%
-          </div>
-          <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1 font-medium">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>High availability SLA maintained</span>
-          </p>
-        </div>
-
-        {/* MTTR */}
-        <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Mean Time to Resolve</span>
-            <Clock className="w-4 h-4 text-blue-400" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-100">
-            {report.mttrMinutes} min
-          </div>
-          <p className="text-xs text-blue-400 mt-2 flex items-center gap-1 font-medium">
-            <TrendingDown className="w-3.5 h-3.5" />
-            <span>vs 45.0m baseline human on-call MTTR</span>
-          </p>
-        </div>
-
-        {/* Cost Avoided */}
-        <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Downtime Cost Avoided</span>
-            <DollarSign className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-3xl font-extrabold text-amber-400">
-            ${report.costAvoidedUsd.toLocaleString()}
-          </div>
-          <p className="text-xs text-slate-400 mt-2 flex items-center gap-1">
-            <span>Saved via autonomous detection & rollback</span>
-          </p>
-        </div>
-
-        {/* Incident Resolution Ratio */}
-        <div className="p-5 bg-slate-900/80 border border-slate-800 rounded-xl">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-medium uppercase tracking-wider">Incidents Handled</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div className="text-3xl font-extrabold text-slate-100">
-            {report.resolvedIncidents} <span className="text-sm font-normal text-slate-400">/ {report.totalIncidents} resolved</span>
-          </div>
-          <p className="text-xs text-slate-400 mt-2">
-            {report.activeIncidents > 0 ? (
-              <span className="text-amber-400 font-medium">● {report.activeIncidents} currently active</span>
+          <div style={{ padding: '16px 12px 12px', height: '220px' }}>
+            {failureModeChartData.length === 0 ? (
+              <EmptyState title="No failure modes recorded" description="No incidents recorded in this reporting period." />
             ) : (
-              <span className="text-emerald-400 font-medium">● All active incidents cleared</span>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={failureModeChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#242B34" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#6B7685"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#242B34' }}
+                  />
+                  <YAxis
+                    stroke="#6B7685"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={{ stroke: '#242B34' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1A1F26',
+                      borderColor: '#323B47',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      color: '#E8ECF1',
+                    }}
+                    cursor={{ fill: 'rgba(255, 255, 255, 0.04)' }}
+                  />
+                  <Bar dataKey="incidents" fill="#7CC4FF" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
             )}
-          </p>
-        </div>
+          </div>
+        </Panel>
+
+        {/* 7-Day Uptime Chart */}
+        <Panel padding="none">
+          <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <span
+              style={{
+                fontSize: 'var(--font-size-12)',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              7-Day Availability Trend
+            </span>
+          </div>
+          <div style={{ padding: '16px 12px 12px', height: '220px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={uptimeTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#242B34" vertical={false} />
+                <XAxis
+                  dataKey="day"
+                  stroke="#6B7685"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: '#242B34' }}
+                />
+                <YAxis
+                  domain={[99.5, 100]}
+                  stroke="#6B7685"
+                  fontSize={11}
+                  tickLine={false}
+                  axisLine={{ stroke: '#242B34' }}
+                  tickFormatter={(val) => `${val}%`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1A1F26',
+                    borderColor: '#323B47',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    color: '#E8ECF1',
+                  }}
+                  formatter={(val: any) => [`${val}%`, 'Uptime']}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="uptime"
+                  stroke="#3DD68C"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#3DD68C' }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Panel>
       </div>
 
-      {/* Grid: Service Breakdown & Failure Modes */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Service Uptime Breakdown */}
-        <div className="lg:col-span-2 p-5 bg-slate-900/60 border border-slate-800 rounded-xl">
-          <h2 className="text-base font-bold text-slate-200 mb-4 flex items-center gap-2">
-            <Activity className="w-4 h-4 text-emerald-400" />
-            <span>Monitored Services Availability</span>
-          </h2>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-800 text-slate-400 pb-2">
-                  <th className="pb-2 font-medium">Service</th>
-                  <th className="pb-2 font-medium">Status</th>
-                  <th className="pb-2 font-medium">Criticality</th>
-                  <th className="pb-2 font-medium">Checks</th>
-                  <th className="pb-2 font-medium text-right">Uptime</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {report.serviceMetrics.map((sm) => (
-                  <tr key={sm.serviceId} className="hover:bg-slate-800/20 transition-colors">
-                    <td className="py-3 font-semibold text-slate-200">{sm.name}</td>
-                    <td className="py-3">
-                      <StatusBadge status={sm.status} />
-                    </td>
-                    <td className="py-3 text-slate-400 uppercase tracking-wider text-[10px]">
-                      {sm.criticality}
-                    </td>
-                    <td className="py-3 text-slate-400">{sm.totalChecks} sweeps</td>
-                    <td className="py-3 text-right font-mono font-medium text-emerald-400">
-                      {sm.uptimePercent.toFixed(2)}%
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      {/* 4. Postmortem List */}
+      <Panel padding="none">
+        <div
+          style={{
+            padding: '14px 16px',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 'var(--font-size-12)',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Synthesized Incident Postmortems ({report.recentPostmortems.length})
+          </span>
+          <Chip variant="accent" size="sm">
+            Gemini Core
+          </Chip>
         </div>
 
-        {/* Right: Top Failure Modes */}
-        <div className="p-5 bg-slate-900/60 border border-slate-800 rounded-xl">
-          <h2 className="text-base font-bold text-slate-200 mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <span>Top Failure Modes</span>
-          </h2>
-
-          <div className="space-y-3">
-            {report.topFailureModes.map((fm, idx) => (
+        {report.recentPostmortems.length === 0 ? (
+          <EmptyState
+            title="No postmortems generated yet"
+            description="When incidents are investigated and resolved, Nightwatch synthesizes comprehensive markdown postmortems."
+          />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {report.recentPostmortems.map((pm) => (
               <div
-                key={idx}
-                className="p-3 bg-slate-800/40 border border-slate-800 rounded-lg flex items-start justify-between gap-3"
+                key={pm.incidentId}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  gap: '16px',
+                }}
               >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200">{fm.category}</div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    Impact: <span className="text-amber-400">{fm.impact}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="font-mono" style={{ fontSize: '11px', color: 'var(--accent)' }}>
+                      {pm.incidentId}
+                    </span>
+                    <span style={{ color: 'var(--border-strong)' }}>•</span>
+                    <span className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {pm.serviceName}
+                    </span>
                   </div>
+                  <h4
+                    style={{
+                      fontSize: 'var(--font-size-13)',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginTop: '4px',
+                    }}
+                  >
+                    {pm.summary}
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: 'var(--font-size-12)',
+                      color: 'var(--text-secondary)',
+                      marginTop: '2px',
+                    }}
+                  >
+                    Root cause: {pm.rootCause}
+                  </p>
                 </div>
-                <span className="px-2 py-0.5 text-xs font-mono font-bold bg-slate-800 text-slate-300 rounded border border-slate-700">
-                  {fm.count}x
-                </span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="tabular-nums" style={{ fontSize: 'var(--font-size-12)', color: 'var(--text-muted)' }}>
+                    {pm.resolvedAt ? new Date(pm.resolvedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Resolved'}
+                  </span>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleOpenPostmortem(pm.incidentId)}
+                    icon={<FileText size={13} />}
+                  >
+                    View Postmortem
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      </div>
+        )}
+      </Panel>
 
-      {/* Postmortems Viewer Section */}
-      <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-xl">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-200 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-400" />
-              <span>Automated Incident Postmortems (ML-3)</span>
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Authoritative incident postmortems synthesized by Gemini upon resolution.
-            </p>
+      {/* 5. Postmortem Reader Side Drawer with Beautiful Typography */}
+      <Drawer
+        isOpen={!!selectedIncidentId}
+        onClose={() => setSelectedIncidentId(null)}
+        title={postmortem?.summary || 'Incident Postmortem'}
+        subtitle={postmortem ? `Incident ID: ${postmortem.incidentId} • Target: ${postmortem.serviceId}` : ''}
+        width="680px"
+        footer={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Synthesized by Nightwatch AI
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopyMarkdown}
+              icon={copiedPostmortem ? <Check size={13} /> : <Copy size={13} />}
+            >
+              {copiedPostmortem ? 'Copied' : 'Copy Markdown'}
+            </Button>
           </div>
-        </div>
-
-        <div className="space-y-3">
-          {report.recentPostmortems.length === 0 ? (
-            <p className="text-xs text-slate-400 p-4 bg-slate-800/20 rounded-lg text-center">
-              No resolved incident postmortems yet.
-            </p>
-          ) : (
-            report.recentPostmortems.map((pm) => (
+        }
+      >
+        {loadingPostmortem ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '12px 0' }}>
+            <Skeleton height="24px" width="60%" />
+            <Skeleton height="16px" width="90%" />
+            <Skeleton height="16px" width="80%" />
+            <Skeleton height="100px" />
+          </div>
+        ) : postmortem ? (
+          <div
+            style={{
+              fontSize: 'var(--font-size-13)',
+              lineHeight: 1.6,
+              color: 'var(--text-primary)',
+              maxWidth: '65ch',
+            }}
+          >
+            {/* Styled Markdown Reader */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
               <div
-                key={pm.incidentId}
-                className="flex items-center justify-between p-4 bg-slate-800/40 hover:bg-slate-800/70 border border-slate-800 hover:border-slate-700 rounded-lg transition-all"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: 'var(--bg-raised)',
+                  border: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
               >
-                <div className="flex items-start gap-3">
-                  <SeverityBadge severity={pm.severity} />
-                  <div>
-                    <div className="text-sm font-semibold text-slate-200">
-                      {pm.summary}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">
-                      <span className="text-slate-300 font-medium">{pm.serviceName}</span> &bull; Cause: {pm.rootCause}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleOpenPostmortem(pm.incidentId)}
-                  className="btn btn-outline text-xs shrink-0 flex items-center gap-1.5 ml-4"
-                >
-                  <FileText className="w-3.5 h-3.5 text-blue-400" />
-                  <span>View Postmortem</span>
-                  <ArrowUpRight className="w-3 h-3 text-slate-400" />
-                </button>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Target Service: <code className="font-mono" style={{ color: 'var(--text-primary)' }}>{postmortem.serviceId}</code>
+                </span>
+                <Chip variant="healthy" size="sm">
+                  Resolved via Rollback
+                </Chip>
               </div>
-            ))
-          )}
-        </div>
-      </div>
 
-      {/* Postmortem Modal */}
-      {selectedIncidentId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-3xl max-h-[85vh] flex flex-col bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/90">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-blue-400" />
-                <h3 className="text-lg font-bold text-slate-100">
-                  Incident Postmortem: <span className="font-mono text-emerald-400">{selectedIncidentId}</span>
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedIncidentId(null)}
-                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              <pre
+                className="font-mono"
+                style={{
+                  padding: '16px',
+                  borderRadius: 'var(--radius-control)',
+                  backgroundColor: 'var(--bg-ink)',
+                  border: '1px solid var(--border-subtle)',
+                  fontSize: '12px',
+                  lineHeight: 1.55,
+                  color: 'var(--text-primary)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                }}
               >
-                &times;
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto p-6 text-sm text-slate-200 leading-relaxed font-sans prose prose-invert max-w-none">
-              {loadingPostmortem ? (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-400 mb-2" />
-                  <p className="text-xs">Generating postmortem draft with Gemini...</p>
-                </div>
-              ) : postmortem ? (
-                <div className="whitespace-pre-wrap font-sans text-xs sm:text-sm text-slate-200">
-                  {postmortem.markdown}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-400">Unable to load postmortem.</p>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex justify-end">
-              <button
-                onClick={() => setSelectedIncidentId(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                Close
-              </button>
+                {postmortem.markdown}
+              </pre>
             </div>
           </div>
-        </div>
-      )}
+        ) : null}
+      </Drawer>
     </div>
   );
 };

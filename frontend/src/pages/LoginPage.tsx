@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Shield, KeyRound, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/Button';
 
 export const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,70 +31,180 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="login-card">
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-        <div style={{
-          backgroundColor: 'rgba(16, 185, 129, 0.1)',
-          padding: '0.75rem',
-          borderRadius: '50%',
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-        }}>
-          <Shield size={36} color="#10b981" />
-        </div>
-      </div>
-
-      <h1 className="login-title">Nightwatch</h1>
-      <p className="login-subtitle">
-        Autonomous AI On-Call SRE & War-Room Dashboard
-      </p>
-
-      {error && (
-        <div style={{
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          color: '#f87171',
-          padding: '0.65rem 0.85rem',
-          borderRadius: '0.375rem',
-          fontSize: '0.825rem',
+    <div
+      style={{
+        minHeight: '100vh',
+        backgroundColor: 'var(--bg-ink)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '380px',
           display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          marginBottom: '1rem',
-        }}>
-          <AlertCircle size={16} />
-          <span>{error}</span>
+          flexDirection: 'column',
+          gap: '24px',
+        }}
+      >
+        {/* Wordmark & Description */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--bg-raised)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="var(--accent)"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            </div>
+            <span
+              style={{
+                fontSize: 'var(--font-size-16)',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Nightwatch
+            </span>
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--font-size-13)',
+              color: 'var(--text-secondary)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Your on-call engineer, awake 24/7
+          </p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="password">
-            Dashboard Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter DASHBOARD_PASSWORD..."
-            autoFocus
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="btn btn-primary"
-          style={{ width: '100%', justifyContent: 'center', marginTop: '0.5rem' }}
-          disabled={isLoading}
+        {/* Form Card */}
+        <div
+          style={{
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-panel)',
+            padding: '24px',
+          }}
         >
-          <KeyRound size={16} />
-          <span>{isLoading ? 'Verifying...' : 'Access War-Room'}</span>
-        </button>
-      </form>
+          {error && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                padding: '10px 12px',
+                borderRadius: 'var(--radius-control)',
+                backgroundColor: 'var(--status-critical-tint)',
+                border: '1px solid rgba(255, 107, 107, 0.25)',
+                color: 'var(--status-critical)',
+                fontSize: 'var(--font-size-12)',
+                marginBottom: '16px',
+                lineHeight: 1.4,
+              }}
+            >
+              <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '1px' }} />
+              <span>{error}</span>
+            </div>
+          )}
 
-      <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: '#64748b' }}>
-        Default dev password: <code style={{ color: '#94a3b8' }}>nightwatch-dev-secret</code>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div>
+              <label
+                htmlFor="password"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--font-size-12)',
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  marginBottom: '6px',
+                }}
+              >
+                Dashboard Password
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter DASHBOARD_PASSWORD"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '8px 36px 8px 10px',
+                    fontSize: 'var(--font-size-13)',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '10px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              loading={isLoading}
+              icon={<ArrowRight size={14} />}
+              style={{ width: '100%' }}
+            >
+              Sign in to War-Room
+            </Button>
+          </form>
+
+          <div
+            style={{
+              marginTop: '16px',
+              paddingTop: '14px',
+              borderTop: '1px solid var(--border-subtle)',
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              textAlign: 'center',
+            }}
+          >
+            Default dev password: <code className="font-mono" style={{ color: 'var(--text-secondary)' }}>nightwatch-dev-secret</code>
+          </div>
+        </div>
       </div>
     </div>
   );

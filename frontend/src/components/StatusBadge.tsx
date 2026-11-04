@@ -1,24 +1,25 @@
 import React from 'react';
 import { ServiceStatus } from '../api/types';
+import { Chip, ChipVariant } from './ui/Chip';
+import { StatusDot } from './ui/StatusDot';
 
 export const StatusBadge: React.FC<{ status: ServiceStatus }> = ({ status }) => {
-  const getBadgeClass = () => {
-    switch (status) {
-      case 'healthy':
-        return 'badge-healthy';
-      case 'degraded':
-        return 'badge-degraded';
-      case 'down':
-        return 'badge-down';
-      default:
-        return 'badge-unknown';
-    }
+  const variantMap: Record<ServiceStatus, ChipVariant> = {
+    healthy: 'healthy',
+    degraded: 'degraded',
+    down: 'critical',
+    unknown: 'neutral',
   };
 
+  const variant = variantMap[status] || 'neutral';
+
   return (
-    <span className={`badge ${getBadgeClass()}`}>
-      <span className="pulse-dot" />
+    <Chip
+      variant={variant}
+      size="sm"
+      icon={<StatusDot status={variant} size={6} pulse={status === 'down'} />}
+    >
       {status}
-    </span>
+    </Chip>
   );
 };

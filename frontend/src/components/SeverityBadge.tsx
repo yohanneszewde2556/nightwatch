@@ -1,19 +1,17 @@
 import React from 'react';
 import { Severity } from '../api/types';
+import { Chip, ChipVariant } from './ui/Chip';
 
 export const SeverityBadge: React.FC<{ severity: Severity }> = ({ severity }) => {
-  const getBadgeClass = () => {
-    switch (severity) {
-      case 'P1':
-        return 'badge-p1';
-      case 'P2':
-        return 'badge-p2';
-      case 'P3':
-        return 'badge-p3';
-      default:
-        return 'badge-unknown';
-    }
+  const variantMap: Record<Severity, ChipVariant> = {
+    P1: 'critical',
+    P2: 'degraded',
+    P3: 'neutral',
   };
 
-  return <span className={`badge ${getBadgeClass()}`}>{severity}</span>;
+  return (
+    <Chip variant={variantMap[severity] || 'neutral'} size="sm">
+      {severity}
+    </Chip>
+  );
 };
