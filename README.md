@@ -8,27 +8,30 @@
 
 ```
 nightwatch/
-├── backend/            # FastAPI, Python 3.12+, Pydantic v2, SQLite/Firestore
+├── backend/            # FastAPI, Python 3.12+, Pydantic v2, SQLite WAL
 │   ├── app/
-│   │   ├── api/        # Typed FastAPI route endpoints (Services, Incidents, Settings)
-│   │   ├── core/       # Pydantic Settings config & Bearer/Tick authentication
-│   │   ├── models/     # Domain Pydantic schemas and enums matching SRS data model
-│   │   ├── storage/    # Abstract BaseRepository, SQLite engine & Firestore stub
-│   │   ├── detectors/  # Health & log sweep detector stubs (Phase 2)
-│   │   ├── agent/      # Gemini reasoning & diagnostic loop stubs (Phase 3)
-│   │   ├── tools/      # Log, commit, rollback & GitHub tool stubs (Phase 3)
-│   │   └── notifiers/  # Telegram and email alert stubs (Phase 3)
-│   ├── tests/          # Pytest suite covering auth, services CRUD, incidents, kill switch
+│   │   ├── api/        # REST routes (Services, Incidents, Demo Chaos, Reports, Agent Chat, Webhooks)
+│   │   ├── core/       # Pydantic Settings & resilient Gemini client with 3x retry & fallback
+│   │   ├── models/     # Schemas and domain enums matching SRS data model
+│   │   ├── storage/    # BaseRepository interface & SQLite WAL engine
+│   │   ├── detectors/  # Health probe, log scanner, DT-3 confirmation & background sweep
+│   │   ├── agent/      # Gemini reasoning investigator, runbook vector memory, postmortem generator
+│   │   ├── tools/      # fetch_logs, check_health, list_commits, rollback_deploy, open_issue
+│   │   └── notifiers/  # Telegram alerts with inline keyboard callbacks
+│   ├── tests/          # 46 Pytest tests covering detectors, agent, reports, auth, CRUD
 │   └── seed.py         # Database seeding script for sample services and incidents
-├── frontend/           # React 18, Vite, TypeScript, React Router, Lucide Icons
+├── frontend/           # React 18, Vite, TypeScript, React Router, Lucide Icons, Tailwind
 │   ├── src/
-│   │   ├── api/        # Typed API client with Bearer session auth
+│   │   ├── api/        # Typed API client with Bearer session auth & real endpoints
 │   │   ├── context/    # Auth context managing dashboard session state
-│   │   ├── components/ # Calm UI badges, status indicators, and Navbar
-│   │   └── pages/      # Overview, War-Room with event timeline, Services CRUD, Login
-├── sample-app/         # Target Cloud Run service placeholder (Next task)
+│   │   ├── components/ # Calm UI badges, status indicators, Navbar, DemoChaosModal
+│   │   └── pages/      # Overview, War-Room with event timeline, Services CRUD, Reports, Login
+├── sample-app/         # Monitored e-commerce target ("demo-shop" on :8001)
+│   ├── app/            # FastAPI shop API, in-memory log buffer, chaos injection, traffic simulator
+│   ├── tests/          # 18 Pytest unit tests for sample app behavior and chaos modes
+│   └── publish_to_demo_shop.ps1 # GitHub publishing script for commit history
 ├── scripts/
-│   └── check_setup.py  # Environment credentials & connectivity tester (make check)
+│   └── check_setup.py  # Environment credentials & connectivity tester
 ├── docs/               # Software Requirements Specification (SRS)
 ├── Makefile            # Development, test, and check automation targets
 ├── .env.example        # Environment variable template
@@ -68,8 +71,8 @@ Default configuration keys:
 | Target | Command | Description |
 | --- | --- | --- |
 | **Setup Check** | `make check` | Runs `scripts/check_setup.py` verifying credentials |
-| **Run Tests** | `make test` | Runs backend pytest suite (21 unit & API tests) |
-| **Start Dev** | `make dev` | Starts backend on `:8000` and frontend on `:5173` |
+| **Run Tests** | `make test` | Runs 46 backend unit & API tests (plus 18 sample-app tests) |
+| **Start Dev** | `make dev` | Starts backend on `:8000`, frontend on `:5173`, sample-app on `:8001` |
 | **Seed Database** | `make seed` | Populates SQLite with 2 services & 3 sample incidents |
 | **Build Frontend**| `make build` | Typechecks and creates production frontend bundle |
 
@@ -115,9 +118,11 @@ make test
 ## 🖥️ Frontend Dashboard
 
 The frontend is a calm, responsive single-page application built with React, Vite, and TypeScript:
-- **Overview (`/`)**: High-level health banner (green when healthy), monitored service cards, and active incident list.
-- **War-Room (`/incidents/:id`)**: Detailed root cause analysis view, confidence metric, evidence viewer, action approval gate, and live event reasoning trace.
+- **Overview (`/`)**: High-level health banner, active monitored services, and active incident list.
+- **War-Room (`/incidents/:id`)**: Detailed root cause analysis view, confidence metric, evidence viewer, action approval gate, live Gemini reasoning trace, and conversational agent Q&A.
+- **Reports (`/reports`)**: Weekly reliability summary displaying uptime KPIs, MTTR, downtime cost avoided, top failure modes, and automated markdown postmortems.
 - **Services (`/services`)**: Registry to add, pause, or configure services and their autonomy level.
+- **Demo Chaos Panel**: Interactive modal in the navbar to inject bad releases (v2 discount bug), latency spikes, or service crashes on demand.
 - **Emergency Kill Switch**: Global toggle in the top navbar to instantly halt all automated agent actions.
 
 ---
