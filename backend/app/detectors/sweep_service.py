@@ -210,6 +210,16 @@ class DetectorEngine:
                     )
                     logger.info("Auto-resolved incident %s after 3 healthy checks", inc.id)
                     await notify_incident_resolved(inc, service)
+                    # ML-1: Save resolved incident into runbook memory
+                    from app.agent.runbook_memory import save_incident_to_runbook
+                    import asyncio
+                    asyncio.create_task(
+                        save_incident_to_runbook(
+                            inc,
+                            fix_applied="Rolled back service to previous release",
+                            storage=storage,
+                        )
+                    )
                     incident_resolved = True
 
         return {
@@ -294,6 +304,13 @@ class DetectorEngine:
 
         # 4. Dispatch Telegram alert
         await notify_incident_detected(incident, service, check)
+
+        # 5. Launch AI investigation loop if kill switch is not engaged
+        settings_state = storage.get_settings()
+        if not settings_state.killSwitch:
+            import asyncio
+            from app.agent.investigator import investigation_agent
+            asyncio.create_task(investigation_agent.investigate(incident.id, storage))
 
         return incident
 

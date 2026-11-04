@@ -58,17 +58,29 @@ def test_get_incident_events(client, auth_headers):
     assert "action" in types
 
 
-def test_approve_action_stub(client, auth_headers):
-    """Test action approval endpoint returns 501 stub."""
-    payload = {"approvedBy": "tester@acme.corp", "comment": "Approved rollback"}
+def test_approve_action_execution(client, auth_headers):
+    """Test action approval executes rollback, transitions to mitigating, and logs events."""
+    payload = {"note": "Approved rollback via test"}
     res = client.post("/api/incidents/inc-103/approve", json=payload, headers=auth_headers)
-    assert res.status_code == 501
-    assert "pending implementation" in res.json()["detail"]
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "approved"
+    assert data["action"] == "rollback_deploy"
+
+    # Confirm incident is now mitigating
+    detail = client.get("/api/incidents/inc-103", headers=auth_headers).json()
+    assert detail["status"] == "mitigating"
 
 
-def test_reject_action_stub(client, auth_headers):
-    """Test action rejection endpoint returns 501 stub."""
-    payload = {"reason": "Not the correct revision", "rejectedBy": "tester@acme.corp"}
+def test_reject_action_execution(client, auth_headers):
+    """Test action rejection records rejection event and reverts to investigating."""
+    payload = {"reason": "Not the correct revision"}
     res = client.post("/api/incidents/inc-103/reject", json=payload, headers=auth_headers)
-    assert res.status_code == 501
-    assert "pending implementation" in res.json()["detail"]
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "rejected"
+    assert data["reason"] == "Not the correct revision"
+
+    # Confirm incident is investigating
+    detail = client.get("/api/incidents/inc-103", headers=auth_headers).json()
+    assert detail["status"] == "investigating"

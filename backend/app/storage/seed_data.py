@@ -247,3 +247,18 @@ def seed_database(storage: BaseRepository) -> None:
             },
         )
     )
+
+    # -------------------------------------------------------------------------
+    # 3. Runbook Memory Precedents (SRS 6.4)
+    # -------------------------------------------------------------------------
+    from app.models.schemas import Runbook
+    storage.create_runbook(
+        Runbook(
+            id="rb-checkout-001",
+            incidentId="inc-past-099",
+            symptoms="500 Internal Server Error spike on /checkout after feature release",
+            rootCause="TypeError in checkout calculation logic after deploy introduced discount promo code changes",
+            fixApplied="Rollback deploy to previous stable revision and draft GitHub fix issue",
+            outcome="100% recovery within 2 minutes of rollback approval",
+        )
+    )
