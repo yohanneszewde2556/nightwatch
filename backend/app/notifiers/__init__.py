@@ -1,6 +1,13 @@
-"""Notifiers module.
+"""Notifiers package for Telegram and external alerting."""
 
-Manages Telegram Bot alerts with inline action buttons, email digests,
-and status update broadcasting.
-Implementation scheduled for Phase 3.
-"""
+from app.notifiers.telegram import (
+    notify_incident_detected,
+    notify_incident_resolved,
+    send_telegram_message,
+)
+
+__all__ = [
+    "notify_incident_detected",
+    "notify_incident_resolved",
+    "send_telegram_message",
+]

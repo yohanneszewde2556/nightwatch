@@ -1,8 +1,12 @@
 """Internal scheduler tick API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Any, Dict
+from fastapi import APIRouter, Depends
 
+from app.api.deps import get_storage
 from app.core.auth import verify_tick_secret
+from app.detectors import detector_engine
+from app.storage.base import BaseRepository
 
 router = APIRouter(
     prefix="/internal",
@@ -12,14 +16,12 @@ router = APIRouter(
 
 
 @router.post("/tick")
-def scheduler_tick() -> None:
-    """Internal cron tick invoked by Cloud Scheduler every 5 minutes.
+async def scheduler_tick(
+    storage: BaseRepository = Depends(get_storage),
+) -> Dict[str, Any]:
+    """Internal cron tick invoked by Cloud Scheduler or test harnesses.
 
     Protected by 'X-Tick-Secret' header.
-    Stub behavior: In next phase, triggers health sweeps, deploy watch, and digest jobs.
+    Executes a health and log sweep across all active registered services.
     """
-    # TODO: Implement 5-minute health sweeps and cron dispatcher in Phase 2
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Scheduler tick handler is pending implementation in Phase 2.",
-    )
+    return await detector_engine.sweep_all_services(storage)

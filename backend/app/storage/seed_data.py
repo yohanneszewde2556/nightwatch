@@ -25,6 +25,22 @@ def seed_database(storage: BaseRepository) -> None:
     # -------------------------------------------------------------------------
     # 1. Services
     # -------------------------------------------------------------------------
+    svc_demo = ServiceCreate(
+        id="svc-demo-shop",
+        name="Demo Shop API",
+        healthUrl="http://127.0.0.1:8001/health",
+        cloudRunService="demo-shop",
+        githubRepo="yohanneszewde2556/demo-shop",
+        criticality=Criticality.HIGH,
+        autonomyLevel=AutonomyLevel.ACT_WITH_APPROVAL,
+        paused=False,
+    )
+    storage.create_service(svc_demo)
+    storage.update_service(
+        "svc-demo-shop",
+        ServiceUpdate(status=ServiceStatus.HEALTHY),
+    )
+
     svc_payment = ServiceCreate(
         id="svc-payment-gateway",
         name="Payment Gateway API",
@@ -33,7 +49,7 @@ def seed_database(storage: BaseRepository) -> None:
         githubRepo="acme-corp/payment-service",
         criticality=Criticality.HIGH,
         autonomyLevel=AutonomyLevel.ACT_WITH_APPROVAL,
-        paused=False,
+        paused=True,
     )
     storage.create_service(svc_payment)
     storage.update_service(
@@ -49,7 +65,7 @@ def seed_database(storage: BaseRepository) -> None:
         githubRepo="acme-corp/cart-checkout",
         criticality=Criticality.HIGH,
         autonomyLevel=AutonomyLevel.SUGGEST,
-        paused=False,
+        paused=True,
     )
     storage.create_service(svc_cart)
     storage.update_service(

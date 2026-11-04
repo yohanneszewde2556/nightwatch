@@ -45,11 +45,11 @@ def test_tick_rejects_wrong_secret(client):
 
 
 def test_tick_accepts_valid_secret(client):
-    """Confirm /internal/tick passes authentication with valid secret (returns 501 stub)."""
+    """Confirm /internal/tick passes authentication with valid secret and runs sweep."""
     res = client.post(
         "/internal/tick",
         headers={"X-Tick-Secret": settings.TICK_SECRET},
     )
-    # Authenticated, hits the 501 stub
-    assert res.status_code == 501
-    assert "pending implementation" in res.json()["detail"]
+    # Authenticated, sweep runs successfully
+    assert res.status_code == 200
+    assert "services_checked" in res.json()

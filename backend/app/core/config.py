@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     STORAGE_BACKEND: Literal["sqlite", "firestore"] = "sqlite"
     SQLITE_DB_PATH: str = str(REPO_ROOT / "nightwatch.db")
 
+    # Sweep & Detection
+    SWEEP_INTERVAL_SECONDS: float = 15.0
+    SWEEP_ENABLED: bool = True
+
     # API / Server
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",

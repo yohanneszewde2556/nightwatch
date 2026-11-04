@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.core.config import settings
+from app.detectors import start_detection_scheduler, stop_detection_scheduler
 from app.storage import get_repository, seed_database
 
 
@@ -18,7 +19,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     services = storage.list_services()
     if not services:
         seed_database(storage)
+
+    # Start background detection sweeps
+    start_detection_scheduler()
+
     yield
+
+    # Stop background detection sweeps on shutdown
+    await stop_detection_scheduler()
 
 
 app = FastAPI(
