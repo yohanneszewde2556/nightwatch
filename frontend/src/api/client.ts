@@ -1,14 +1,17 @@
 /** Typed API client for Nightwatch backend. */
 
 import {
+  DemoChaosResponse,
   Incident,
   IncidentEvent,
   IncidentStatus,
+  PostmortemDetail,
   Service,
   ServiceCreate,
   ServiceUpdate,
   Severity,
   SystemSettings,
+  WeeklyReport,
 } from './types';
 
 const TOKEN_KEY = 'nightwatch_dashboard_token';
@@ -173,6 +176,31 @@ class NightwatchClient {
     return this.request<SystemSettings>('/settings/kill-switch', {
       method: 'POST',
       body: JSON.stringify({ killSwitch }),
+    });
+  }
+
+  // Demo Chaos Controls
+  async injectDemoChaos(scenario: string, serviceId?: string): Promise<DemoChaosResponse> {
+    return this.request<DemoChaosResponse>('/demo/chaos', {
+      method: 'POST',
+      body: JSON.stringify({ scenario, serviceId: serviceId || 'svc-demo-shop' }),
+    });
+  }
+
+  // Reports & Postmortems
+  async getWeeklyReport(): Promise<WeeklyReport> {
+    return this.request<WeeklyReport>('/reports/weekly');
+  }
+
+  async getPostmortem(incidentId: string): Promise<PostmortemDetail> {
+    return this.request<PostmortemDetail>(`/reports/postmortems/${incidentId}`);
+  }
+
+  // Agent Chat
+  async chatWithAgent(message: string, serviceId?: string): Promise<{ reply: string; model?: string }> {
+    return this.request<{ reply: string; model?: string }>('/agent/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, serviceId }),
     });
   }
 }

@@ -5,6 +5,7 @@ import { Layout } from './components/Layout';
 import { OverviewPage } from './pages/OverviewPage';
 import { WarRoomPage } from './pages/WarRoomPage';
 import { ServicesPage } from './pages/ServicesPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { LoginPage } from './pages/LoginPage';
 
 const AppRoutes: React.FC = () => {
@@ -20,6 +21,7 @@ const AppRoutes: React.FC = () => {
         <Route path="/" element={<OverviewPage />} />
         <Route path="/incidents/:id" element={<WarRoomPage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

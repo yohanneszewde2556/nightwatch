@@ -167,5 +167,18 @@ class AgentChatRequest(BaseModel):
 
 
 class ChaosRequest(BaseModel):
-    serviceId: str
-    scenario: str = Field(..., description="Failure scenario: crash, slow, bad_deploy")
+    serviceId: Optional[str] = "svc-demo-shop"
+    scenario: str = Field(..., description="Failure scenario: crash, slow, bad_deploy, reset")
+
+
+class WeeklyReport(BaseModel):
+    period: str
+    uptimePercent: float
+    totalIncidents: int
+    resolvedIncidents: int
+    activeIncidents: int
+    mttrMinutes: float
+    costAvoidedUsd: float
+    topFailureModes: List[Dict[str, Any]]
+    serviceMetrics: List[Dict[str, Any]]
+    recentPostmortems: List[Dict[str, Any]]

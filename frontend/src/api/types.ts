@@ -67,3 +67,55 @@ export interface SystemSettings {
   notificationTargets?: Record<string, any> | null;
   dailyGeminiBudget?: number | null;
 }
+
+export interface TopFailureMode {
+  category: string;
+  count: number;
+  impact: string;
+}
+
+export interface ServiceMetric {
+  serviceId: string;
+  name: string;
+  status: ServiceStatus;
+  criticality: Criticality;
+  uptimePercent: number;
+  totalChecks: number;
+}
+
+export interface PostmortemSummary {
+  incidentId: string;
+  serviceName: string;
+  severity: Severity;
+  summary: string;
+  rootCause: string;
+  resolvedAt?: string | null;
+}
+
+export interface WeeklyReport {
+  period: string;
+  uptimePercent: number;
+  totalIncidents: number;
+  resolvedIncidents: number;
+  activeIncidents: number;
+  mttrMinutes: number;
+  costAvoidedUsd: number;
+  topFailureModes: TopFailureMode[];
+  serviceMetrics: ServiceMetric[];
+  recentPostmortems: PostmortemSummary[];
+}
+
+export interface PostmortemDetail {
+  incidentId: string;
+  serviceId: string;
+  summary: string;
+  markdown: string;
+}
+
+export interface DemoChaosResponse {
+  success: boolean;
+  scenario: string;
+  message: string;
+  remote_status: number;
+  current_state: Record<string, any>;
+}
