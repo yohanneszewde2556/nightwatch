@@ -57,10 +57,13 @@ async def generate_postmortem_markdown(
         gemini = get_gemini_client()
         postmortem_text, _ = await gemini.generate_content(
             prompt=prompt,
-            system_instruction="You are a principal site reliability engineer writing an authoritative postmortem report.",
+            system_instruction="You are a principal site reliability engineer writing an authoritative postmortem report. Begin with '# Incident Postmortem: <id> - <summary>'.",
             temperature=0.2,
         )
-        return postmortem_text.strip()
+        text = postmortem_text.strip()
+        if not text.startswith("# Incident Postmortem"):
+            text = f"# Incident Postmortem: {incident.id} - {incident.summary}\n\n" + text
+        return text
 
     except Exception as exc:
         logger.debug("Gemini unavailable for postmortem generation (%s), using structured template", exc)

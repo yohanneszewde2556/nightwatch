@@ -47,6 +47,14 @@ class GeminiResponse:
     duration_seconds: float
     raw: Dict[str, Any]
 
+    def __iter__(self):
+        return iter((self.text, self.model))
+
+    def __await__(self):
+        async def _self():
+            return self
+        return _self().__await__()
+
 
 @dataclass
 class GeminiEmbeddingResponse:
@@ -55,6 +63,11 @@ class GeminiEmbeddingResponse:
     model: str
     duration_seconds: float
     raw: Dict[str, Any]
+
+    def __await__(self):
+        async def _self():
+            return self
+        return _self().__await__()
 
 
 def _mask_secret(secret: Optional[str]) -> str:
@@ -137,6 +150,10 @@ class GeminiClient:
             for fb in self.fallback_models:
                 if fb and fb not in models_to_try:
                     models_to_try.append(fb)
+        elif action == "embedContent":
+            for eb in ["embedding-001", "text-embedding-004"]:
+                if eb not in models_to_try:
+                    models_to_try.append(eb)
 
         client = self._get_http_client()
         last_error_desc = "Unknown error"
@@ -232,17 +249,23 @@ class GeminiClient:
 
     def generate_content(
         self,
-        prompt_or_contents: Union[str, List[Dict[str, Any]]],
+        prompt_or_contents: Optional[Union[str, List[Dict[str, Any]]]] = None,
+        prompt: Optional[str] = None,
+        system_instruction: Optional[str] = None,
         model: Optional[str] = None,
         max_output_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         generation_config: Optional[Dict[str, Any]] = None,
     ) -> GeminiResponse:
         """Send prompt to Gemini with resilient retry and model fallback."""
-        if isinstance(prompt_or_contents, str):
-            contents = [{"parts": [{"text": prompt_or_contents}]}]
+        target_prompt = prompt if prompt is not None else prompt_or_contents
+        if target_prompt is None:
+            target_prompt = ""
+
+        if isinstance(target_prompt, str):
+            contents = [{"parts": [{"text": target_prompt}]}]
         else:
-            contents = prompt_or_contents
+            contents = target_prompt
 
         config = dict(generation_config or {})
         if max_output_tokens is not None:
@@ -254,6 +277,10 @@ class GeminiClient:
             p: Dict[str, Any] = {"contents": contents}
             if config:
                 p["generationConfig"] = config
+            if system_instruction:
+                p["systemInstruction"] = {
+                    "parts": [{"text": system_instruction}]
+                }
             return p
 
         data, answered_model, duration = self._execute_with_retry_and_fallback(

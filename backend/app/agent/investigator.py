@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.runbook_memory import search_similar_runbooks
+from app.core.config import settings
 from app.core.gemini_client import get_gemini_client
 from app.models.enums import AutonomyLevel, EventType, IncidentStatus
 from app.models.schemas import Incident, IncidentEvent, Service
@@ -119,7 +120,13 @@ class InvestigationAgent:
 
         # Record hypothesis
         confidence = 0.86  # Standard baseline for conclusive log+commit match
-        root_cause = response_text.strip().split("\n")[0]
+        lines = [line.strip() for line in response_text.strip().split("\n") if line.strip()]
+        root_cause = lines[0] if lines else "Investigated root cause"
+        for line in lines:
+            cleaned = line.lstrip("#* -").strip()
+            if cleaned and not cleaned.lower().startswith("root cause") and not cleaned.lower().startswith("diagnosis"):
+                root_cause = cleaned
+                break
         if len(root_cause) > 180:
             root_cause = root_cause[:180] + "..."
 
@@ -306,17 +313,19 @@ class InvestigationAgent:
                 f"Tap below to approve immediate rollback:"
             )
 
-            reply_markup = {
-                "inline_keyboard": [
-                    [
-                        {"text": "✅ Approve Rollback", "callback_data": f"approve:{incident.id}"},
-                        {"text": "❌ Reject", "callback_data": f"reject:{incident.id}"},
-                    ],
-                    [
-                        {"text": "🔗 Open War-Room", "url": f"http://localhost:5173/incidents/{incident.id}"},
-                    ],
-                ]
-            }
+            keyboard_buttons = [
+                [
+                    {"text": "✅ Approve Rollback", "callback_data": f"approve:{incident.id}"},
+                    {"text": "❌ Reject", "callback_data": f"reject:{incident.id}"},
+                ],
+            ]
+            dash_base = getattr(settings, "dashboard_url", "").strip()
+            if dash_base.startswith("https://"):
+                keyboard_buttons.append([
+                    {"text": "🔗 Open War-Room", "url": f"{dash_base}/incidents/{incident.id}"}
+                ])
+
+            reply_markup = {"inline_keyboard": keyboard_buttons}
 
             await send_telegram_message(text, reply_markup=reply_markup)
             logger.info("Dispatched Telegram approval card for incident %s", incident.id)
