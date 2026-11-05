@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  sample-app:
+    build:
+      context: ./sample-app
+      dockerfile: Dockerfile
+    container_name: nightwatch-demo-shop
+    ports:
+      - "8001:8001"
+    environment:
+      - ADMIN_TOKEN=demo-admin-secret
+      - TRAFFIC_INTERVAL_SECONDS=1.5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nightwatch-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-nightwatch-dev-secret}
+      - TICK_SECRET=${TICK_SECRET:-nightwatch-scheduler-tick-secret}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - DB_PATH=/app/data/nightwatch.db
+    volumes:
+      - nightwatch-data:/app/data
+    depends_on:
+      - sample-app
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nightwatch-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  nightwatch-data:
